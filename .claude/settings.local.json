@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(python:*)",
+      "Bash(cat:*)",
+      "Bash(grep:*)",
+      "Bash(mkdir:*)",
+      "Bash(touch:*)",
+      "Bash(echo:*)",
+      "Bash(tee:*)",
+      "Bash(rm:*)",
+      "Bash(mv:*)",
+      "Bash(cp:*)",
+      "Bash(sed:*)",
+      "Bash(awk:*)",
+      "Bash(nano:*)",
+      "Bash(vim:*)",
+      "Bash(rmdir:*)",
+      "Bash(chmod:*)",
+      "Bash(rg:*)",
+      "Bash(for:*)",
+      "Bash(do sed -i.bak \"s/''conversation_id'': [^,]*,//g\" \"$file\")",
+      "Bash(done)",
+      "Bash(/Users/sharkar/.claude/local/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/arm64-darwin/rg \"calendar_done.*=.*True\" flow_types/calendar.py -B5 -A5)",
+      "Bash(npm:*)",
+      "Bash(git:*)",
+      "Bash(curl:*)",
+      "Bash(npx:*)",
+      "WebFetch(domain:*)",
+      "Bash(do echo \"=== $file ===\")",
+      "Bash(zip:*)",
+      "Bash(rar:*)"
+    ],
+    "deny": []
+  }
+}
