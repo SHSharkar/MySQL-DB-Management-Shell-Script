@@ -32,7 +32,10 @@
       "WebFetch(domain:*)",
       "Bash(do echo \"=== $file ===\")",
       "Bash(zip:*)",
-      "Bash(rar:*)"
+      "Bash(rar:*)",
+      "Bash(bash:*)",
+      "Bash(timeout:*)",
+      "Bash(mysql:*)"
     ],
     "deny": []
   }
