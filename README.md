@@ -10,6 +10,16 @@ This script is designed to manage MySQL databases by providing functionalities t
 - **Progress Bar**: Displays a progress bar for long-running operations.
 - **Logging**: Provides colored and timestamped log messages for better visibility.
 
+### Enhanced Features (Laravel Herd Version)
+- **Professional UI**: Formatted headers with borders, database connection info, and timestamps
+- **File Size Display**: Shows SQL file sizes during selection for better decision making
+- **Operation Timing**: Tracks and reports duration for all database operations
+- **Enhanced Safety Confirmations**: Uses specific confirmation words (YES/OVERRIDE/PROCEED) to prevent accidental operations
+- **Visual Progress Indicators**: Uses checkmarks (✓) and warning symbols (⚠) for clear status feedback
+- **Real-time Feedback**: Displays operation start/end times and progress dots during imports
+- **Step-by-Step Operations**: Clear indication of multi-step processes (Step 1/2, Step 2/2)
+- **Improved Error Handling**: Better error messages and graceful failure handling
+
 ## Requirements
 - MySQL client must be installed and configured.
 - Proper database access credentials (username and password).
@@ -41,6 +51,12 @@ This script is designed to manage MySQL databases by providing functionalities t
    ./mysql_db_management.sh
    ```
 
+   **For macOS users with Laravel Herd**, use the enhanced version:
+   ```bash
+   chmod +x mysql_db_management_mac_os_laravel-herd.sh
+   ./mysql_db_management_mac_os_laravel-herd.sh
+   ```
+
 4. **Main Menu Options**:
    - **Clear Database**: Lists available databases (excluding system databases) and allows you to select one to clear all tables.
    - **Import SQL File**: Lists available SQL files in the `Downloads` directory and imports the selected file into a specified database.
@@ -68,10 +84,42 @@ This script is designed to manage MySQL databases by providing functionalities t
 ## Requirements and Prerequisites
 - **MySQL Client**: Ensure that the MySQL client is installed on your system and properly configured.
   ```bash
+  # Linux/Ubuntu
   sudo apt-get install mysql-client
+  
+  # macOS with Homebrew
+  brew install mysql-client
+  
+  # Or use Laravel Herd (includes MySQL)
   ```
 - **Database Access**: Make sure you have the necessary permissions to access and modify the databases.
 - **Directory Access**: The script assumes that SQL files are located in the `Downloads` directory of the user's home folder.
+
+### Version-Specific Requirements
+- **Basic Version**: Manual configuration of database credentials
+- **macOS Version**: Automatic MySQL client detection and validation  
+- **Laravel Herd Version**: Enhanced UI requires terminal with Unicode support for symbols (✓, ⚠)
+
+## Script Versions
+
+### 1. mysql_db_management.sh (Basic Version)
+- Simple interactive menu system
+- Manual database credential configuration
+- Basic progress indicators and logging
+
+### 2. mysql_db_management_mac.sh (macOS Version)  
+- Automatic MySQL client detection
+- Enhanced compatibility with macOS systems
+- Improved error handling for missing MySQL client
+
+### 3. mysql_db_management_mac_os_laravel-herd.sh (Enhanced Version)
+- Professional UI with formatted headers and borders
+- Real-time operation timing and duration reporting
+- File size display during SQL file selection
+- Enhanced safety confirmations with specific keywords
+- Visual progress indicators with Unicode symbols
+- Step-by-step operation feedback
+- Improved error messages and user experience
 
 ## Caution
 **Warning**: This script will alter database tables. It is strongly advised to use it with caution, especially on production databases. Ensure you have proper backups before running the script.
