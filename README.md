@@ -28,6 +28,39 @@ These scripts are designed to manage MySQL and PostgreSQL databases by providing
 - Access to the `Downloads` directory for storing and renaming SQL files.
 - Bash environment to execute the script.
 
+## Quick Install (Alternative Method)
+
+If you prefer to directly download individual scripts to your home directory without cloning the entire repository, use these commands:
+
+### Download MySQL Script (Laravel Herd Version)
+```bash
+# Using curl
+curl -o ~/mysql_db_management.sh https://raw.githubusercontent.com/SHSharkar/MySQL-PostgreSQL-DB-Management/main/mysql_db_management_mac_os_laravel-herd.sh
+
+# Using wget
+wget -O ~/mysql_db_management.sh https://raw.githubusercontent.com/SHSharkar/MySQL-PostgreSQL-DB-Management/main/mysql_db_management_mac_os_laravel-herd.sh
+```
+
+### Download PostgreSQL Script (Laravel Herd Version)
+```bash
+# Using curl
+curl -o ~/pgsql_db_management.sh https://raw.githubusercontent.com/SHSharkar/MySQL-PostgreSQL-DB-Management/main/pgsql_db_management_mac_os_laravel-herd.sh
+
+# Using wget
+wget -O ~/pgsql_db_management.sh https://raw.githubusercontent.com/SHSharkar/MySQL-PostgreSQL-DB-Management/main/pgsql_db_management_mac_os_laravel-herd.sh
+```
+
+After downloading, make the script executable:
+```bash
+# For MySQL script
+chmod +x ~/mysql_db_management.sh
+./mysql_db_management.sh
+
+# For PostgreSQL script  
+chmod +x ~/pgsql_db_management.sh
+./pgsql_db_management.sh
+```
+
 ## Setup and Usage
 1. **Clone the Repository**:
    - Using HTTPS:
