@@ -32,11 +32,11 @@ These scripts are designed to manage MySQL and PostgreSQL databases by providing
 1. **Clone the Repository**:
    - Using HTTPS:
      ```bash
-     git clone https://github.com/SHSharkar/MySQL-DB-Management-Shell-Script.git && cd MySQL-DB-Management-Shell-Script
+     git clone https://github.com/SHSharkar/MySQL-PostgreSQL-DB-Management.git && cd MySQL-PostgreSQL-DB-Management
      ```
    - Using SSH:
      ```bash
-     git clone git@github.com:SHSharkar/MySQL-DB-Management-Shell-Script.git && cd MySQL-DB-Management-Shell-Script
+     git clone git@github.com:SHSharkar/MySQL-PostgreSQL-DB-Management.git && cd MySQL-PostgreSQL-DB-Management
      ```
 
 2. **Configure the Script**:
