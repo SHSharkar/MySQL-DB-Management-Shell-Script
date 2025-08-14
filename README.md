@@ -1,12 +1,13 @@
-# MySQL DB Management Shell Script
+# MySQL & PostgreSQL DB Management Shell Scripts
 
 ## Overview
-This script is designed to manage MySQL databases by providing functionalities to clear all tables in a specified database and to import SQL files into a database. It includes a user-friendly menu for selecting databases and SQL files, and it supports the renaming of SQL files to a standardized format.
+These scripts are designed to manage MySQL and PostgreSQL databases by providing functionalities to clear all tables in a specified database and to import SQL files into a database. They include user-friendly menus for selecting databases and SQL files, and support the renaming of SQL files to a standardized format. Both MySQL and PostgreSQL variants offer identical professional interfaces and functionality.
 
 ## Features
-- **Clear Database**: Drops all tables from a specified MySQL database.
-- **Import SQL File**: Imports a selected SQL file into a specified MySQL database.
+- **Clear Database**: Drops all tables from a specified MySQL or PostgreSQL database.
+- **Import SQL File**: Imports a selected SQL file into a specified MySQL or PostgreSQL database.
 - **Both**: Combines clearing a database and then importing an SQL file into it.
+- **Multi-Database Support**: Separate scripts for MySQL and PostgreSQL with database-specific optimizations.
 - **Progress Bar**: Displays a progress bar for long-running operations.
 - **Logging**: Provides colored and timestamped log messages for better visibility.
 
@@ -21,7 +22,8 @@ This script is designed to manage MySQL databases by providing functionalities t
 - **Improved Error Handling**: Better error messages and graceful failure handling
 
 ## Requirements
-- MySQL client must be installed and configured.
+- **For MySQL scripts**: MySQL client must be installed and configured.
+- **For PostgreSQL scripts**: PostgreSQL client (`psql`) must be installed and configured.
 - Proper database access credentials (username and password).
 - Access to the `Downloads` directory for storing and renaming SQL files.
 - Bash environment to execute the script.
@@ -53,8 +55,13 @@ This script is designed to manage MySQL databases by providing functionalities t
 
    **For macOS users with Laravel Herd**, use the enhanced version:
    ```bash
+   # MySQL version
    chmod +x mysql_db_management_mac_os_laravel-herd.sh
    ./mysql_db_management_mac_os_laravel-herd.sh
+   
+   # PostgreSQL version
+   chmod +x pgsql_db_management_mac_os_laravel-herd.sh
+   ./pgsql_db_management_mac_os_laravel-herd.sh
    ```
 
 4. **Main Menu Options**:
@@ -82,15 +89,23 @@ This script is designed to manage MySQL databases by providing functionalities t
 - Then, imports the selected SQL file into the same database.
 
 ## Requirements and Prerequisites
-- **MySQL Client**: Ensure that the MySQL client is installed on your system and properly configured.
+- **Database Clients**: Ensure that the appropriate database client is installed on your system and properly configured.
   ```bash
+  # MySQL Client
   # Linux/Ubuntu
   sudo apt-get install mysql-client
   
   # macOS with Homebrew
   brew install mysql-client
   
-  # Or use Laravel Herd (includes MySQL)
+  # PostgreSQL Client
+  # Linux/Ubuntu
+  sudo apt-get install postgresql-client
+  
+  # macOS with Homebrew
+  brew install postgresql
+  
+  # Laravel Herd (includes both MySQL and PostgreSQL)
   ```
 - **Database Access**: Make sure you have the necessary permissions to access and modify the databases.
 - **Directory Access**: The script assumes that SQL files are located in the `Downloads` directory of the user's home folder.
@@ -102,17 +117,19 @@ This script is designed to manage MySQL databases by providing functionalities t
 
 ## Script Versions
 
-### 1. mysql_db_management.sh (Basic Version)
+### MySQL Scripts
+
+#### 1. mysql_db_management.sh (Basic Version - 334 lines)
 - Simple interactive menu system
 - Manual database credential configuration
 - Basic progress indicators and logging
 
-### 2. mysql_db_management_mac.sh (macOS Version)  
+#### 2. mysql_db_management_mac.sh (macOS Version - 341 lines)  
 - Automatic MySQL client detection
 - Enhanced compatibility with macOS systems
 - Improved error handling for missing MySQL client
 
-### 3. mysql_db_management_mac_os_laravel-herd.sh (Enhanced Version)
+#### 3. mysql_db_management_mac_os_laravel-herd.sh (Enhanced Version - 522 lines)
 - Professional UI with formatted headers and borders
 - Real-time operation timing and duration reporting
 - File size display during SQL file selection
@@ -120,6 +137,17 @@ This script is designed to manage MySQL databases by providing functionalities t
 - Visual progress indicators with Unicode symbols
 - Step-by-step operation feedback
 - Improved error messages and user experience
+
+### PostgreSQL Scripts
+
+#### 4. pgsql_db_management_mac_os_laravel-herd.sh (PostgreSQL Enhanced Version - 522 lines)
+- **Complete PostgreSQL Implementation**: Full feature parity with MySQL enhanced version
+- **Database-Specific Adaptations**: Uses `psql` with `PGPASSWORD` authentication
+- **PostgreSQL System Integration**: Queries `pg_database` and `pg_tables` catalogs
+- **CASCADE Operations**: Implements `DROP TABLE CASCADE` for foreign key constraints
+- **Extended File Support**: Supports `.sql`, `.dump`, and `.psql` file formats
+- **Professional Interface**: Identical UI/UX to MySQL version with PostgreSQL branding
+- **Laravel Herd Compatible**: Default port 5432, works with Herd PostgreSQL setup
 
 ## Caution
 **Warning**: This script will alter database tables. It is strongly advised to use it with caution, especially on production databases. Ensure you have proper backups before running the script.
