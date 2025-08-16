@@ -45,6 +45,50 @@ list_databases() {
     PGPASSWORD="$DB_PASS" "$PSQL_CMD" -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "postgres" -t -c "SELECT datname FROM pg_database WHERE datname NOT IN ($system_dbs) AND datistemplate = false;" 2>/dev/null | sed 's/^ *//;s/ *$//' | grep -v '^$'
 }
 
+list_tables() {
+    local db_name=$1
+    PGPASSWORD="$DB_PASS" "$PSQL_CMD" -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$db_name" -t -c "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename;" 2>/dev/null | sed 's/^ *//;s/ *$//' | grep -v '^$'
+}
+
+format_export_filename() {
+    local db_name=$1
+    local table_name=$2
+    local date_suffix=$(date "+%Y_%m_%d_%H%M%S")
+    local base_name="${db_name}_${table_name}_${date_suffix}"
+    echo "$base_name" | sed -e 's/[^A-Za-z0-9._-]/_/g' -e 's/__*/_/g'
+}
+
+export_full_database() {
+    local db_name=$1
+    local date_suffix=$(date "+%Y_%m_%d_%H%M%S")
+    local export_filename="${db_name}_full_backup_${date_suffix}"
+    export_filename=$(echo "$export_filename" | sed -e 's/[^A-Za-z0-9._-]/_/g' -e 's/__*/_/g')
+    local export_path="$DOWNLOADS_PATH/${export_filename}.sql"
+    
+    echo -e "\n${BLUE}▶ Starting full database export...${NC}"
+    local start_time=$(get_timestamp)
+    echo -e "${BLUE}Started at: $(date "+%I:%M:%S %p")${NC}"
+    
+    PGPASSWORD="$DB_PASS" pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$db_name" --clean --if-exists --no-owner --no-acl > "$export_path" 2>/dev/null
+    
+    if [ $? -eq 0 ]; then
+        local end_time=$(get_timestamp)
+        local duration=$((end_time - start_time))
+        local file_size=$(ls -lh "$export_path" | awk '{print $5}')
+        
+        echo -e "\n${GREEN}✓ Full database export completed successfully${NC}"
+        echo -e "${GREEN}✓ File: ${export_filename}.sql (${file_size})${NC}"
+        echo -e "${GREEN}✓ Location: $DOWNLOADS_PATH${NC}"
+        echo -e "${GREEN}✓ Duration: $(format_duration $duration)${NC}"
+        echo -e "${GREEN}✓ Finished at: $(date "+%I:%M:%S %p")${NC}"
+        return 0
+    else
+        echo -e "\n${RED}✗ Full database export failed${NC}"
+        rm -f "$export_path"
+        return 1
+    fi
+}
+
 check_if_database_contains_tables() {
     local db_name=$1
     local tables=$(PGPASSWORD="$DB_PASS" "$PSQL_CMD" -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$db_name" -t -c "SELECT tablename FROM pg_tables WHERE schemaname = 'public';" 2>/dev/null | sed 's/^ *//;s/ *$//' | grep -v '^$')
@@ -475,6 +519,157 @@ both_tasks() {
     done
 }
 
+export_database_task() {
+    while true; do
+        show_header
+        show_action_header "Export Database"
+        
+        databases=()
+        while IFS= read -r line; do
+            databases+=("$line")
+        done < <(list_databases)
+
+        if [ ${#databases[@]} -eq 0 ]; then
+            echo -e "${RED}No databases found.${NC}"
+            echo -ne "\nPress Enter to return to main menu..."
+            read
+            return
+        fi
+
+        echo -e "${GREEN}Found ${#databases[@]} database(s)${NC}\n"
+        
+        if ! prompt_selection "Select database to export:" "${databases[@]}"; then
+            return
+        fi
+        db_name="${databases[$REPLY]}"
+        
+        echo -e "\n${BLUE}▶ Selected database: ${BOLD}$db_name${NC}\n"
+        
+        echo -e "${GREEN}Export Options:${NC}\n"
+        echo -e "  ${GREEN}1${NC}. Export entire database (all tables, functions, triggers)"
+        echo -e "  ${GREEN}2${NC}. Export specific table only"
+        echo -e "  ${GREEN}3${NC}. Go Back\n"
+        
+        while true; do
+            echo -ne "${BOLD}Select export type [1-3]: ${NC}"
+            read -r export_choice
+            
+            case $export_choice in
+            1)
+                echo -e "\n${BLUE}▶ Export Type: Full Database Backup${NC}"
+                local date_suffix=$(date "+%Y_%m_%d_%H%M%S")
+                local export_filename="${db_name}_full_backup_${date_suffix}"
+                export_filename=$(echo "$export_filename" | sed -e 's/[^A-Za-z0-9._-]/_/g' -e 's/__*/_/g')
+                
+                echo -e "${BLUE}▶ Export filename: ${BOLD}${export_filename}.sql${NC}"
+                
+                export_full_database "$db_name"
+                echo -ne "\nPress Enter to continue..."
+                read
+                break
+                ;;
+            2)
+                echo -e "\n${BLUE}▶ Export Type: Specific Table${NC}\n"
+                
+                tables=()
+                while IFS= read -r line; do
+                    tables+=("$line")
+                done < <(list_tables "$db_name")
+                
+                if [ ${#tables[@]} -eq 0 ]; then
+                    echo -e "${RED}No tables found in database $db_name${NC}"
+                    echo -ne "\nPress Enter to continue..."
+                    read
+                    break
+                fi
+                
+                echo -e "${GREEN}Found ${#tables[@]} table(s) in database${NC}\n"
+                
+                if ! prompt_selection "Select table to export:" "${tables[@]}"; then
+                    break
+                fi
+                table_name="${tables[$REPLY]}"
+                
+                echo -e "\n${BLUE}▶ Selected table: ${BOLD}$table_name${NC}"
+                
+                local export_filename=$(format_export_filename "$db_name" "$table_name")
+                local export_path="$DOWNLOADS_PATH/${export_filename}.sql"
+                
+                echo -e "${BLUE}▶ Export filename: ${BOLD}${export_filename}.sql${NC}"
+                
+                echo -e "\n${BLUE}▶ Starting export operation...${NC}"
+                local start_time=$(get_timestamp)
+                echo -e "${BLUE}Started at: $(date "+%I:%M:%S %p")${NC}"
+                
+                {
+                    echo "-- PostgreSQL Database Export"
+                    echo "-- Database: $db_name"
+                    echo "-- Table: $table_name"
+                    echo "-- Export Date: $(date '+%Y-%m-%d %H:%M:%S')"
+                    echo "-- --------------------------------------------------------"
+                    echo ""
+                    echo "-- Table structure for table $table_name"
+                    echo ""
+                } > "$export_path"
+                
+                PGPASSWORD="$DB_PASS" "$PSQL_CMD" -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$db_name" -c "\d $table_name" 2>/dev/null | sed 's/^/-- /' >> "$export_path"
+                
+                echo "" >> "$export_path"
+                echo "-- Dumping data for table $table_name" >> "$export_path"
+                echo "" >> "$export_path"
+                
+                PGPASSWORD="$DB_PASS" pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$db_name" -t "$table_name" --data-only --column-inserts 2>/dev/null >> "$export_path"
+                
+                if [ $? -eq 0 ]; then
+                    local end_time=$(get_timestamp)
+                    local duration=$((end_time - start_time))
+                    local file_size=$(ls -lh "$export_path" | awk '{print $5}')
+                    
+                    echo -e "\n${GREEN}✓ Export completed successfully${NC}"
+                    echo -e "${GREEN}✓ File: ${export_filename}.sql (${file_size})${NC}"
+                    echo -e "${GREEN}✓ Location: $DOWNLOADS_PATH${NC}"
+                    echo -e "${GREEN}✓ Duration: $(format_duration $duration)${NC}"
+                    echo -e "${GREEN}✓ Finished at: $(date "+%I:%M:%S %p")${NC}"
+                else
+                    echo -e "\n${RED}✗ Export failed${NC}"
+                fi
+                
+                echo -ne "\nPress Enter to continue..."
+                read
+                break
+                ;;
+            3)
+                break
+                ;;
+            *)
+                echo -e "${RED}Invalid selection. Please enter 1, 2, or 3${NC}"
+                ;;
+            esac
+        done
+        
+        echo -e "\n${BLUE}What would you like to do next?${NC}\n"
+        echo -e "  ${GREEN}1${NC}. Export another database/table"
+        echo -e "  ${GREEN}2${NC}. Return to Main Menu"
+        echo -e "  ${GREEN}3${NC}. Exit\n"
+        
+        while true; do
+            echo -ne "${BOLD}Enter your choice [1-3]: ${NC}"
+            read -r next_action
+            case $next_action in
+            1) break ;;
+            2) return ;;
+            3)
+                echo -e "\n${GREEN}Thank you for using PostgreSQL Database Management System${NC}"
+                exit 0
+                ;;
+            *)
+                echo -e "${RED}Invalid selection. Please try again.${NC}"
+                ;;
+            esac
+        done
+    done
+}
+
 
 main_menu() {
     show_header
@@ -483,10 +678,11 @@ main_menu() {
     echo -e "  ${GREEN}1${NC}. Clear Database       - Remove all tables from a database"
     echo -e "  ${GREEN}2${NC}. Import SQL File      - Import SQL file into a database"
     echo -e "  ${GREEN}3${NC}. Clear & Import       - Clear database then import SQL"
-    echo -e "  ${GREEN}4${NC}. Exit\n"
+    echo -e "  ${GREEN}4${NC}. Export Database      - Export full database or specific table"
+    echo -e "  ${GREEN}5${NC}. Exit\n"
     
     while true; do
-        echo -ne "${BOLD}Select operation [1-4]: ${NC}"
+        echo -ne "${BOLD}Select operation [1-5]: ${NC}"
         read -r choice
         
         case $choice in
@@ -503,11 +699,15 @@ main_menu() {
             return
             ;;
         4)
+            export_database_task
+            return
+            ;;
+        5)
             echo -e "\n${GREEN}Thank you for using PostgreSQL Database Management System${NC}\n"
             exit 0
             ;;
         *)
-            echo -e "${RED}Invalid selection. Please enter a number between 1-4${NC}"
+            echo -e "${RED}Invalid selection. Please enter a number between 1-5${NC}"
             ;;
         esac
     done

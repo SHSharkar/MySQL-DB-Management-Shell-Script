@@ -45,6 +45,50 @@ list_databases() {
     "$MYSQL_CMD" -u"$DB_USER" --password="$DB_PASS" -h"$DB_HOST" -P"$DB_PORT" -e "SELECT schema_name FROM information_schema.schemata WHERE schema_name NOT IN ($system_dbs);" -sN 2>/dev/null | tr -d '\t' | sed 's/^ *//;s/ *$//'
 }
 
+list_tables() {
+    local db_name=$1
+    "$MYSQL_CMD" -u"$DB_USER" --password="$DB_PASS" -h"$DB_HOST" -P"$DB_PORT" -D"$db_name" -e 'SHOW TABLES;' -sN 2>/dev/null | tr -d '\t' | sed 's/^ *//;s/ *$//'
+}
+
+format_export_filename() {
+    local db_name=$1
+    local table_name=$2
+    local date_suffix=$(date "+%Y_%m_%d_%H%M%S")
+    local base_name="${db_name}_${table_name}_${date_suffix}"
+    echo "$base_name" | sed -e 's/[^A-Za-z0-9._-]/_/g' -e 's/__*/_/g'
+}
+
+export_full_database() {
+    local db_name=$1
+    local date_suffix=$(date "+%Y_%m_%d_%H%M%S")
+    local export_filename="${db_name}_full_backup_${date_suffix}"
+    export_filename=$(echo "$export_filename" | sed -e 's/[^A-Za-z0-9._-]/_/g' -e 's/__*/_/g')
+    local export_path="$DOWNLOADS_PATH/${export_filename}.sql"
+    
+    echo -e "\n${BLUE}▶ Starting full database export...${NC}"
+    local start_time=$(get_timestamp)
+    echo -e "${BLUE}Started at: $(date "+%I:%M:%S %p")${NC}"
+    
+    mysqldump -u"$DB_USER" --password="$DB_PASS" -h"$DB_HOST" -P"$DB_PORT" --single-transaction --routines --triggers --events "$db_name" > "$export_path" 2>/dev/null
+    
+    if [ $? -eq 0 ]; then
+        local end_time=$(get_timestamp)
+        local duration=$((end_time - start_time))
+        local file_size=$(ls -lh "$export_path" | awk '{print $5}')
+        
+        echo -e "\n${GREEN}✓ Full database export completed successfully${NC}"
+        echo -e "${GREEN}✓ File: ${export_filename}.sql (${file_size})${NC}"
+        echo -e "${GREEN}✓ Location: $DOWNLOADS_PATH${NC}"
+        echo -e "${GREEN}✓ Duration: $(format_duration $duration)${NC}"
+        echo -e "${GREEN}✓ Finished at: $(date "+%I:%M:%S %p")${NC}"
+        return 0
+    else
+        echo -e "\n${RED}✗ Full database export failed${NC}"
+        rm -f "$export_path"
+        return 1
+    fi
+}
+
 check_if_database_contains_tables() {
     local db_name=$1
     local tables=$("$MYSQL_CMD" -u"$DB_USER" --password="$DB_PASS" -h"$DB_HOST" -P"$DB_PORT" -D"$db_name" -e 'SHOW TABLES;' | awk '{print $1}' | grep -v '^Tables_in_')
@@ -474,6 +518,156 @@ both_tasks() {
     done
 }
 
+export_database_task() {
+    while true; do
+        show_header
+        show_action_header "Export Database"
+        
+        databases=()
+        while IFS= read -r line; do
+            databases+=("$line")
+        done < <(list_databases)
+
+        if [ ${#databases[@]} -eq 0 ]; then
+            echo -e "${RED}No databases found.${NC}"
+            echo -ne "\nPress Enter to return to main menu..."
+            read
+            return
+        fi
+
+        echo -e "${GREEN}Found ${#databases[@]} database(s)${NC}\n"
+        
+        if ! prompt_selection "Select database to export:" "${databases[@]}"; then
+            return
+        fi
+        db_name="${databases[$REPLY]}"
+        
+        echo -e "\n${BLUE}▶ Selected database: ${BOLD}$db_name${NC}\n"
+        
+        echo -e "${GREEN}Export Options:${NC}\n"
+        echo -e "  ${GREEN}1${NC}. Export entire database (all tables, triggers, routines)"
+        echo -e "  ${GREEN}2${NC}. Export specific table only"
+        echo -e "  ${GREEN}3${NC}. Go Back\n"
+        
+        while true; do
+            echo -ne "${BOLD}Select export type [1-3]: ${NC}"
+            read -r export_choice
+            
+            case $export_choice in
+            1)
+                echo -e "\n${BLUE}▶ Export Type: Full Database Backup${NC}"
+                local date_suffix=$(date "+%Y_%m_%d_%H%M%S")
+                local export_filename="${db_name}_full_backup_${date_suffix}"
+                export_filename=$(echo "$export_filename" | sed -e 's/[^A-Za-z0-9._-]/_/g' -e 's/__*/_/g')
+                
+                echo -e "${BLUE}▶ Export filename: ${BOLD}${export_filename}.sql${NC}"
+                
+                export_full_database "$db_name"
+                echo -ne "\nPress Enter to continue..."
+                read
+                break
+                ;;
+            2)
+                echo -e "\n${BLUE}▶ Export Type: Specific Table${NC}\n"
+                
+                tables=()
+                while IFS= read -r line; do
+                    tables+=("$line")
+                done < <(list_tables "$db_name")
+                
+                if [ ${#tables[@]} -eq 0 ]; then
+                    echo -e "${RED}No tables found in database $db_name${NC}"
+                    echo -ne "\nPress Enter to continue..."
+                    read
+                    break
+                fi
+                
+                echo -e "${GREEN}Found ${#tables[@]} table(s) in database${NC}\n"
+                
+                if ! prompt_selection "Select table to export:" "${tables[@]}"; then
+                    break
+                fi
+                table_name="${tables[$REPLY]}"
+                
+                echo -e "\n${BLUE}▶ Selected table: ${BOLD}$table_name${NC}"
+                
+                local export_filename=$(format_export_filename "$db_name" "$table_name")
+                local export_path="$DOWNLOADS_PATH/${export_filename}.sql"
+                
+                echo -e "${BLUE}▶ Export filename: ${BOLD}${export_filename}.sql${NC}"
+                
+                echo -e "\n${BLUE}▶ Starting export operation...${NC}"
+                local start_time=$(get_timestamp)
+                echo -e "${BLUE}Started at: $(date "+%I:%M:%S %p")${NC}"
+                
+                "$MYSQL_CMD" -u"$DB_USER" --password="$DB_PASS" -h"$DB_HOST" -P"$DB_PORT" "$db_name" -e "SELECT * FROM \`$table_name\`" > "$export_path.tmp" 2>&1
+                
+                if [ $? -eq 0 ]; then
+                    echo "-- MySQL Database Export" > "$export_path"
+                    echo "-- Database: $db_name" >> "$export_path"
+                    echo "-- Table: $table_name" >> "$export_path"
+                    echo "-- Export Date: $(date '+%Y-%m-%d %H:%M:%S')" >> "$export_path"
+                    echo "-- --------------------------------------------------------" >> "$export_path"
+                    echo "" >> "$export_path"
+                    
+                    "$MYSQL_CMD" -u"$DB_USER" --password="$DB_PASS" -h"$DB_HOST" -P"$DB_PORT" --skip-comments --no-create-db "$db_name" -e "SHOW CREATE TABLE \`$table_name\`" | sed '1d' >> "$export_path" 2>/dev/null
+                    echo ";" >> "$export_path"
+                    echo "" >> "$export_path"
+                    
+                    "$MYSQL_CMD" -u"$DB_USER" --password="$DB_PASS" -h"$DB_HOST" -P"$DB_PORT" --skip-comments --complete-insert --no-create-info "$db_name" -e "SELECT * FROM \`$table_name\`" >> "$export_path" 2>/dev/null
+                    
+                    rm -f "$export_path.tmp"
+                    
+                    local end_time=$(get_timestamp)
+                    local duration=$((end_time - start_time))
+                    local file_size=$(ls -lh "$export_path" | awk '{print $5}')
+                    
+                    echo -e "\n${GREEN}✓ Export completed successfully${NC}"
+                    echo -e "${GREEN}✓ File: ${export_filename}.sql (${file_size})${NC}"
+                    echo -e "${GREEN}✓ Location: $DOWNLOADS_PATH${NC}"
+                    echo -e "${GREEN}✓ Duration: $(format_duration $duration)${NC}"
+                    echo -e "${GREEN}✓ Finished at: $(date "+%I:%M:%S %p")${NC}"
+                else
+                    rm -f "$export_path.tmp"
+                    echo -e "\n${RED}✗ Export failed${NC}"
+                fi
+                
+                echo -ne "\nPress Enter to continue..."
+                read
+                break
+                ;;
+            3)
+                break
+                ;;
+            *)
+                echo -e "${RED}Invalid selection. Please enter 1, 2, or 3${NC}"
+                ;;
+            esac
+        done
+        
+        echo -e "\n${BLUE}What would you like to do next?${NC}\n"
+        echo -e "  ${GREEN}1${NC}. Export another database/table"
+        echo -e "  ${GREEN}2${NC}. Return to Main Menu"
+        echo -e "  ${GREEN}3${NC}. Exit\n"
+        
+        while true; do
+            echo -ne "${BOLD}Enter your choice [1-3]: ${NC}"
+            read -r next_action
+            case $next_action in
+            1) break ;;
+            2) return ;;
+            3)
+                echo -e "\n${GREEN}Thank you for using MySQL Database Management System${NC}"
+                exit 0
+                ;;
+            *)
+                echo -e "${RED}Invalid selection. Please try again.${NC}"
+                ;;
+            esac
+        done
+    done
+}
+
 
 main_menu() {
     show_header
@@ -482,10 +676,11 @@ main_menu() {
     echo -e "  ${GREEN}1${NC}. Clear Database       - Remove all tables from a database"
     echo -e "  ${GREEN}2${NC}. Import SQL File      - Import SQL file into a database"
     echo -e "  ${GREEN}3${NC}. Clear & Import       - Clear database then import SQL"
-    echo -e "  ${GREEN}4${NC}. Exit\n"
+    echo -e "  ${GREEN}4${NC}. Export Database      - Export full database or specific table"
+    echo -e "  ${GREEN}5${NC}. Exit\n"
     
     while true; do
-        echo -ne "${BOLD}Select operation [1-4]: ${NC}"
+        echo -ne "${BOLD}Select operation [1-5]: ${NC}"
         read -r choice
         
         case $choice in
@@ -502,11 +697,15 @@ main_menu() {
             return
             ;;
         4)
+            export_database_task
+            return
+            ;;
+        5)
             echo -e "\n${GREEN}Thank you for using MySQL Database Management System${NC}\n"
             exit 0
             ;;
         *)
-            echo -e "${RED}Invalid selection. Please enter a number between 1-4${NC}"
+            echo -e "${RED}Invalid selection. Please enter a number between 1-5${NC}"
             ;;
         esac
     done
